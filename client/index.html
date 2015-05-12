@@ -1,0 +1,406 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Socket.IO chat</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			#score{
+				color: red;
+				position: absolute;
+				z-index: 10;
+				top: 5px;
+				font-size: 40px;
+				font-weight: bold;
+				font-family: fantasy;
+				left: 5px;
+			}
+			
+			body {
+				font: 13px Helvetica, Arial;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas" width="600" height="400"></canvas>
+		<div id="score" width="100" height="50">0</div>
+	
+		<script src="socket.io-1.2.0.js"></script>
+		<script src="jquery-1.11.1.js"></script>
+		<script src="Shoot.js"></script>
+		<script>
+			var socket = io("http://localhost:3000");
+			var player = { id: Math.ceil( Math.random()*1000000 ), x: 50+Math.ceil( Math.random()*$(window).width()-50 ), y:50+Math.ceil( Math.random()*$(window).height()-50 ), r:0, show: true };
+			var playersList = [];
+			var shootList = [];
+			var canvas = document.getElementById('canvas');
+			var ctx = canvas.getContext('2d');
+			var vx=0, vy =0, acceleration=0, accelerationForcex=0, accelerationForcey=0;
+			var deltaInput = undefined;
+			var score = 0;
+			
+			canvas.width = $(window).width() ;
+	    	canvas.height = $(window).height();
+	    	
+	    	var rAdd = 2, accelerationFactor = .2, bulletAcceleration = 8;
+	    	
+			insertPlayer();
+			
+			/**
+			 * WEBSOCKES
+			 */
+				socket.on('position', function(msg) {
+					// console.log(msg)
+					playersList = [];
+					 for (var i=0; i < msg.length; i++) {
+				    	if( msg[i].id != player.id){
+				    		// if( !existInPlayerList(msg[i].id) ){
+				    			playersList[playersList.length] = msg[i];
+				    		// }
+				    	}
+				    }
+				});
+				
+				socket.on('add_bullets', function(msg) {
+					if( player.id != msg.player_id){
+						var s = new Shoot( Math.ceil( Math.random()*1000000 ), msg.x, msg.y, msg.r, msg.player_id );
+						var ind = shootList.push(s) - 1;
+					}
+				});
+	
+				socket.on('player_die', function(msg) {
+					console.info("player_die " + player.id + " == " + msg.id)
+					if( player.id == msg.id){
+						console.info("	removed ");
+						player.show = false;
+						player.x = 50 + Math.ceil( Math.random()*$(window).width()-50 );
+						player.y = 50 + Math.ceil( Math.random()*$(window).height()-50 );
+						score = 0;
+						$("#score").html(score);
+						
+						setTimeout("insertPlayer()", 1000)
+					}
+				});
+				
+				function insertPlayer(){
+					var message = { id: player.id };
+					player.show = true;
+					socket.emit('add_player', message);	
+				}
+				
+				function updatePlayer(){
+					var message = { id: player.id, x: player.x, y: player.y, r:player.r};
+					socket.emit('update_player', message);	
+				}
+				
+				function updateServerBullets(bullet){
+					socket.emit('add_bullets', bullet);	
+				}
+
+
+
+			/**
+			 * Array Manipulations
+			 */
+				function existInPlayerList( id ){
+					for (var i=0; i < playersList.length; i++) {
+						if( playersList[i].id == id ){
+							return true;
+						}
+					}
+					
+					return false;
+				}
+				
+				function removeBullet(b){
+		    		for(var i = shootList.length-1; i>=0; i--){
+						if (shootList[i].id == b){
+							shootList.splice(i, 1);
+						}
+					}
+		    	}
+		    	
+		    	function removePlayer(b){
+		    		for(var i = playersList.length-1; i>=0; i--){
+						if (playersList[i].id == b){
+							playersList.splice(i, 1);
+						}
+					}
+		    	}
+			
+	    	
+	    	function detectaCollisions(){
+	    		for (var i=0; i < shootList.length; i++) {
+	    		 	var a = shootList[i];
+	    		 	if( a.player_id == player.id){
+						for(var e=0; e<playersList.length; e++){
+							var b = playersList[e];
+							if( (a.x+a.width) > b.x && a.x < (b.x + 30) && (a.y+a.height) > b.y && a.y < (b.y + 30) ){
+								console.info("colidiu: " + b.id);
+								
+								removeBullet(a.id);
+								removePlayer(b.id);
+								
+								score += 10;
+								$("#score").html(score);
+								socket.emit('player_die', b);
+							}
+						}
+					}
+	    		 }
+	    	}
+	    	
+	    	function shoot(){
+	    		var x = player.x + ( 33 * Math.sin( convertToRadians( player.r ) ) ) ;
+				var y = player.y + ( 33 * Math.cos( convertToRadians( player.r ) ) * -1 );
+					
+	    		var s = new Shoot( Math.ceil( Math.random()*1000000 ), x, y, player.r, player.id );
+	    		var ind = shootList.push(s) - 1;
+	    		
+	    		updateServerBullets(s);
+	    	}
+	    	
+	    	function detectaInput(){
+	    		if ( key[4] && ( ( new Date().getTime() - deltaInput ) > 100 || deltaInput == undefined) ) { 
+	    			shoot();
+	    			deltaInput = new Date().getTime();
+	    		}
+	    		
+	    		if (key[0] ) { //esquerda
+	    			player.r -= rAdd;
+	    			// acceleration = 0;
+	    			if( player.r < 0 )
+	    				player.r = 360;
+	    		}
+	    		
+	    		if (key[1] ) { //direita
+	    			player.r += rAdd;
+
+	    			if( player.r > 360 )
+	    				player.r = 0;
+	    		}
+	    		
+	    		if (key[2] ) { //up
+					acceleration -= accelerationFactor;	    	
+					
+					accelerationForcex = acceleration * Math.sin( convertToRadians( player.r ) ) * -1;
+					accelerationForcey = acceleration * Math.cos( convertToRadians( player.r ) );
+
+	    			vx += (accelerationForcex / 100); // * Math.sin( convertToRadians( player.r ) ) * -1;
+					vy += (accelerationForcey / 100); // * Math.cos( convertToRadians( player.r ) );
+	    		}
+	    		
+	    		if (key[3] ) { //down
+	    			acceleration += accelerationFactor;	    	
+					
+					accelerationForcex = acceleration * Math.sin( convertToRadians( player.r ) ) * -1;
+					accelerationForcey = acceleration * Math.cos( convertToRadians( player.r ) );
+
+	    			vx += (accelerationForcex / 100); // * Math.sin( convertToRadians( player.r ) ) * -1;
+					vy += (accelerationForcey / 100); // * Math.cos( convertToRadians( player.r ) );
+	    		}
+	    		
+	    		if( acceleration > 6 )
+	    			acceleration = 6;
+	    			
+	    		if( acceleration < -6 )
+	    			acceleration = -6;
+	    		
+	    		if( vx > 10 )
+	    			vx = 10;
+	    			
+	    		if( vx < -10 )
+	    			vx = -10;
+	    			
+	    		if( vy > 10 )
+	    			vy = 10;
+	    			
+	    		if( vy < -10 )
+	    			vy = -10;
+	    	}
+	    	
+	    	function updateBullets(){
+	    		 for (var i=0; i < shootList.length; i++) {
+	    		 	var b = shootList[i];
+
+	    		 	var bvx = bulletAcceleration * Math.sin( convertToRadians( b.r ) ) ;
+					var bvy = bulletAcceleration * Math.cos( convertToRadians( b.r ) ) * -1;
+
+	    		 	b.x += bvx;
+	    		 	b.y += bvy;
+	    		 	
+	    		 	if( b.y < 0 || b.y > $(window).height() || b.x > $(window).width() || b.x < 0)
+	    		 		removeBullet(b.id);
+	    		 }
+	    	}
+	    	
+	    	function updateGamePos(){
+	    		
+	    		updateBullets();
+	    		
+	    		acceleration *= .99;
+	    		acceleration *= .99;
+
+				// vx = acceleration * Math.sin( convertToRadians( player.r ) ) * -1;
+				// vy = acceleration * Math.cos( convertToRadians( player.r ) );
+					    		
+	    		vx *= .994;
+	    		vy *= .994;
+					
+	    		player.x += vx;
+	    		player.y += vy;
+	    		
+	    		if( player.y < 0)
+	    			player.y = $(window).height();
+	    		
+	    		if( player.y > $(window).height() )
+	    			player.y = 0;
+	    		
+	    		if( player.x > $(window).width())
+	    			player.x = 0;
+	    			
+	    		if( player.x < 0)
+	    			player.x = $(window).width();
+	    			
+	    	}
+	    	
+	    	var v = [[0,-30],[-10,0],[10,0]];
+	    	function drawPlayer(){
+				ctx.save();
+				ctx.translate(player.x, player.y);
+				ctx.fillStyle = "#fff";
+				ctx.rotate( convertToRadians( player.r ) )
+				ctx.beginPath();
+			    ctx.moveTo(v[0][0],v[0][1]);
+			    ctx.lineTo(v[1][0],v[1][1]);
+			    ctx.lineTo(v[2][0],v[2][1]);
+			    ctx.closePath();
+			    ctx.fill();
+			    
+				ctx.restore();
+			}
+			
+			function drawPlayers(){
+				for(var i=0; i<playersList.length; i++){
+					var pl = playersList[i];
+					// console.log( ball )
+					
+					ctx.save();
+					ctx.translate(pl.x, pl.y);
+					ctx.fillStyle = "red";
+
+					ctx.rotate( convertToRadians( pl.r ) )
+					ctx.beginPath();
+				    ctx.moveTo(v[0][0],v[0][1]);
+				    ctx.lineTo(v[1][0],v[1][1]);
+				    ctx.lineTo(v[2][0],v[2][1]);
+				    ctx.closePath();					
+					ctx.fill();
+					ctx.restore();
+				}
+			}
+			
+			function drawBullets(){
+				for(var i=0; i<shootList.length; i++){
+					var b = shootList[i];
+					// console.log( b )
+					
+					ctx.save();
+					ctx.translate(b.x, b.y);
+					
+					ctx.rotate( convertToRadians( b.r ) )
+					ctx.beginPath();
+			      	ctx.moveTo(0, 15);
+			     	ctx.lineTo(0, 0);
+			      	ctx.lineWidth = 2;
+			      	ctx.strokeStyle = '#ff0000';
+			      	ctx.stroke();
+			      	
+			      	// ctx.arc(0, 0, 3, 0, 2 * Math.PI, false);
+				    // ctx.fillStyle = 'red';
+				    // ctx.fill();
+				    
+					ctx.restore();
+				}
+			}
+			
+			function drawBG(){
+				ctx.clearRect( 0, 0, $(window).width(), $(window).height());
+				
+				ctx.save();
+				ctx.fillStyle = "rgba(0, 0, 0, 1)";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.restore();
+			}
+			
+			function draw(){
+				drawBG();				
+				if( player.show)
+					drawPlayer();
+				drawPlayers();
+				drawBullets();
+			}
+			
+			setInterval(function() {
+				detectaInput();
+				detectaCollisions();
+				updateGamePos();
+				
+				draw();
+			}, 1000 / 60);
+			
+			setInterval(function() {
+				updatePlayer();
+			}, 10);
+			
+			function getMousePos(canvas, evt) {
+				var obj = canvas;
+				var top = 0;
+				var left = 0;
+				while (obj && obj.tagName != 'BODY') {
+					top += obj.offsetTop;
+					left += obj.offsetLeft;
+					obj = obj.offsetParent;
+				}
+		
+				var mouseX = evt.clientX - left + window.pageXOffset;
+				var mouseY = evt.clientY - top + window.pageYOffset;
+				return {
+					x : mouseX,
+					y : mouseY
+				};
+			}
+		
+			canvas.addEventListener('mousemove', function(evt) {
+		
+				var mousePos = getMousePos(canvas, evt);
+				mouseXpos = mousePos.x;
+				mouseYpos = mousePos.y;
+		
+			}, false);
+			
+			var key=[0,0,0,0,0]; // left, right, up, down, space
+			function changeKey(which, to){
+				switch (which){
+					case 65: case 37: key[0]=to; break; // left
+					case 87: case 38: key[2]=to; break; // up
+					case 68: case 39: key[1]=to; break; // right
+					case 83: case 40: key[3]=to; break;// down
+					case 32: key[4]=to; break;// down
+				}
+				
+			}
+			
+			function convertToRadians(degree) {
+				return degree*(Math.PI/180);
+			}
+			
+			document.onkeydown=function(e){changeKey((e||window.event).keyCode, 1);}
+			document.onkeyup=function(e){changeKey((e||window.event).keyCode, 0);}
+		</script>
+	</body>
+</html>
