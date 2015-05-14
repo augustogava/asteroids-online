@@ -6,6 +6,10 @@ Player.prototype = {
 	x: 0,
 	y: 0,
 	r: 0,
+	show: true,
+	kills: 0,
+	deaths: 0,
+	nick: "",
 	connection: null,
 	
 	add: function(){

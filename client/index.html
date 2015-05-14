@@ -8,6 +8,14 @@
 				padding: 0;
 				box-sizing: border-box;
 			}
+			
+			body {
+				font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+				font-size: 14px;
+				line-height: 1.42857143;
+				overflow: hidden;
+			}
+			
 			#score{
 				color: red;
 				position: absolute;
@@ -19,48 +27,175 @@
 				left: 5px;
 			}
 			
-			body {
-				font: 13px Helvetica, Arial;
-				overflow: hidden;
+			#leaderboard{
+				color: white;
+				position: absolute;
+				z-index: 10;
+				top: 15px;
+				font-size: 16px;
+				font-weight: bold;
+				background-color: rgba(250, 0, 0, 0.17);
+				width: 190px;
+				height: 260px;
+				left: 84%;
+				text-align: center;
+				display: none;
+			}
+			
+			#leaderboard font{
+				font-size: 21px;
+			}
+			
+			#intro{
+				width: 350px;
+				height: 150px;
+				background-color: #FFFFFF;
+				margin: 100px auto;
+				border-radius: 5px;
+				padding: 35px 15px 5px 15px;
+			}
+			
+			#overlays{
+				position: absolute;
+				left: 0px;
+				right: 0px;
+				top: 0px;
+				bottom: 0px;
+				background-color: rgba(0, 0, 0, 0.9);
+				z-index: 2
+			}
+			
+			.btn-play{
+				background-color: #428bca;
+				border-color: #357ebd;
+				cursor: not-allowed;
+				filter: alpha(opacity=65);
+				-webkit-box-shadow: none;
+				box-shadow: none;
+				opacity: .65;
+				color: #fff;
+				display: block;
+				height: 35px;
+				width: 100%;
+				float: left;
+				background-image: none;
+				border: 1px solid transparent;
+				border-radius: 4px;
+			}
+			
+			.form-nick:focus {
+				border-color: #66afe9;
+				outline: 0;
+				-webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075),0 0 8px rgba(102,175,233,.6);
+				box-shadow: inset 0 1px 1px rgba(0,0,0,.075),0 0 8px rgba(102,175,233,.6);
+			}
+
+			.form-nick {
+				display: block;
+				width: 100%;
+				height: 34px;
+				padding: 6px 12px;
+				font-size: 14px;
+				line-height: 1.42857143;
+				color: #555;
+				background-color: #fff;
+				background-image: none;
+				border: 1px solid #ccc;
+				border-radius: 4px;
+				-webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
+				box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
+				-webkit-transition: border-color ease-in-out .15s,-webkit-box-shadow ease-in-out .15s;
+				-o-transition: border-color ease-in-out .15s,box-shadow ease-in-out .15s;
+				transition: border-color ease-in-out .15s,box-shadow ease-in-out .15s;
+				
+				margin-bottom: 15px;
 			}
 		</style>
 	</head>
 	<body>
+		
+		<div id="overlays">
+			<div id="intro">
+				<input id="nick" class="form-nick" placeholder="Nick" maxlength="14">
+				<button id="playBtn" onclick="setNick(document.getElementById('nick').value); return false;" class="btn-play">Play</button>
+			</div>
+		</div>
+		
+		<div id="score" width="100" height="50"></div>
+		<div id="leaderboard">
+				<font class="title">Leaderboard</font> <br>
+				<div id="leaderboardUpdate"></div>
+		</div>
+			
 		<canvas id="canvas" width="600" height="400"></canvas>
-		<div id="score" width="100" height="50">0</div>
 	
 		<script src="socket.io-1.2.0.js"></script>
 		<script src="jquery-1.11.1.js"></script>
 		<script src="Shoot.js"></script>
 		<script>
 			var socket = io("http://localhost:3000");
-			var player = { id: Math.ceil( Math.random()*1000000 ), x: 50+Math.ceil( Math.random()*$(window).width()-50 ), y:50+Math.ceil( Math.random()*$(window).height()-50 ), r:0, show: true };
-			var playersList = [];
-			var shootList = [];
-			var canvas = document.getElementById('canvas');
-			var ctx = canvas.getContext('2d');
-			var vx=0, vy =0, acceleration=0, accelerationForcex=0, accelerationForcey=0;
-			var deltaInput = undefined;
-			var score = 0;
 			
+			var canvas = document.getElementById('canvas');
 			canvas.width = $(window).width() ;
 	    	canvas.height = $(window).height();
 	    	
-	    	var rAdd = 2, accelerationFactor = .2, bulletAcceleration = 8;
+			var ctx = canvas.getContext('2d');
+			
+			var player = { id: Math.ceil( Math.random()*1000000 ), x: 50+Math.ceil( Math.random()*$(window).width()-50 ), y:50+Math.ceil( Math.random()*$(window).height()-50 ), r:0, show: true, kills:0, deaths:0, nick:"Player" };
+			var playersList = [];
+			var shootList = [];
+			
+			var vx=0, vy =0, acceleration=0, accelerationForcex=0, accelerationForcey=0;
+			var deltaInput = undefined;
+	    	var rAdd = 1.5, accelerationFactor = .2, bulletAcceleration = 8;
 	    	
-			insertPlayer();
+	    	function setNick(nick){
+	    		$("#overlays, #intro").hide();
+	    		
+	    		player.nick = nick
+	    		
+	    		showScore();
+	    		
+	    		initGame();
+	    	}
+	    	
+	    	function showScore(){
+				$("#leaderboard").show();
+			}
+			
+			function hideScore(){
+				$("#leaderboard").hide();
+			}
+			
+			function updateLeaderboard(){
+				var html = "";
+				var lstPlayers = playersList.slice();
+				lstPlayers.push(player);
+				
+				// console.info(lstPlayers);
+				lstPlayers.sort(function(a, b){
+					return b.kills-a.kills;
+				});
+				
+				// console.info(lstPlayers);
+				var l = lstPlayers.length>10 ? 10 : lstPlayers.length;
+				for (var i=0; i < lstPlayers.length; i++) {
+					var pl = lstPlayers[i];
+					html += (i+1) + ". " + pl.nick + " (" + pl.kills + " / " + pl.deaths + ") <br>";
+				}
+				
+				$("#leaderboardUpdate").html( html );
+			}
 			
 			/**
 			 * WEBSOCKES
 			 */
-				socket.on('position', function(msg) {
+				socket.on('update_player', function(msg) {
 					// console.log(msg)
 					playersList = [];
-					 for (var i=0; i < msg.length; i++) {
-				    	if( msg[i].id != player.id){
-				    		// if( !existInPlayerList(msg[i].id) ){
-				    			playersList[playersList.length] = msg[i];
-				    		// }
+					for (var i=0; i < msg.length; i++) {
+				    	if( msg[i].id != player.id ){
+			    			playersList[playersList.length] = msg[i];
 				    	}
 				    }
 				});
@@ -75,25 +210,31 @@
 				socket.on('player_die', function(msg) {
 					console.info("player_die " + player.id + " == " + msg.id)
 					if( player.id == msg.id){
-						console.info("	removed ");
 						player.show = false;
 						player.x = 50 + Math.ceil( Math.random()*$(window).width()-50 );
 						player.y = 50 + Math.ceil( Math.random()*$(window).height()-50 );
-						score = 0;
-						$("#score").html(score);
 						
-						setTimeout("insertPlayer()", 1000)
+						player.deaths += 1;
+						
+						updateScore();
+						setTimeout("activatePlayer();", 1000);
 					}
 				});
 				
+				function updateScore(){ $("#score").html( player.kills + " / " + player.deaths); }
+				
+				function activatePlayer(){
+					player.show = true;
+				}
+				
 				function insertPlayer(){
-					var message = { id: player.id };
+					var message = { id: player.id, nick: player.nick };
 					player.show = true;
 					socket.emit('add_player', message);	
 				}
 				
 				function updatePlayer(){
-					var message = { id: player.id, x: player.x, y: player.y, r:player.r};
+					var message = { id: player.id, x: player.x, y: player.y, r:player.r, show:player.show, kills:player.kills, deaths: player.deaths, nick: player.nick};
 					socket.emit('update_player', message);	
 				}
 				
@@ -133,20 +274,47 @@
 		    	}
 			
 	    	
+	    	function detectaCollisionsTeste(){
+	    		 	var a = { x: mouseXpos, y:mouseYpos, width: 1, height: 1};
+	    		 	
+					var b = player;
+					var xP = b.x - (wTriangle/2);
+					var yP = b.y - (hTriangle/2);
+					var wTriangleNew = wTriangle + 20;
+					
+					if( (a.x+a.width) > xP && a.x < (xP + wTriangleNew) && (a.y+a.height) > yP && a.y < (yP + hTriangle) ){
+						console.info("colidiu: " + b.id);
+						
+					}
+					ctx.save();
+					ctx.translate(b.x- (wTriangleNew/2), b.y - (hTriangle/2));
+			     
+					ctx.fillRect(0, 0, wTriangleNew,hTriangle);
+
+			      	
+					ctx.restore();
+	    	}
+	    	
 	    	function detectaCollisions(){
 	    		for (var i=0; i < shootList.length; i++) {
 	    		 	var a = shootList[i];
 	    		 	if( a.player_id == player.id){
 						for(var e=0; e<playersList.length; e++){
 							var b = playersList[e];
-							if( (a.x+a.width) > b.x && a.x < (b.x + 30) && (a.y+a.height) > b.y && a.y < (b.y + 30) ){
+							var xP = b.x - (wTriangle/2);
+							var yP = b.y - (hTriangle/2);
+							var wTriangleNew = wTriangle + 15;
+							if(  b.show == true && (a.x+a.width) > xP && a.x < (xP + wTriangleNew) && (a.y+a.height) > yP && a.y < (yP + hTriangle) ){
 								console.info("colidiu: " + b.id);
-								
+								b.show = false;
 								removeBullet(a.id);
 								removePlayer(b.id);
 								
-								score += 10;
-								$("#score").html(score);
+								player.kills +=1;
+								
+								updateScore();
+
+								console.info(b)
 								socket.emit('player_die', b);
 							}
 						}
@@ -154,6 +322,29 @@
 	    		 }
 	    	}
 	    	
+	    	function initGame(){
+				insertPlayer();
+				
+				updateScore();
+				
+				setInterval(function() {
+					detectaInput();
+					detectaCollisions();
+					updateGamePos();
+					
+					draw();
+					//detectaCollisionsTeste();
+				}, 1000 / 60);
+				
+				setInterval(function() {
+					updatePlayer();
+				}, 10);
+				
+				setInterval(function() {
+					updateLeaderboard();
+				}, 1000);
+			}
+			
 	    	function shoot(){
 	    		var x = player.x + ( 33 * Math.sin( convertToRadians( player.r ) ) ) ;
 				var y = player.y + ( 33 * Math.cos( convertToRadians( player.r ) ) * -1 );
@@ -165,7 +356,7 @@
 	    	}
 	    	
 	    	function detectaInput(){
-	    		if ( key[4] && ( ( new Date().getTime() - deltaInput ) > 100 || deltaInput == undefined) ) { 
+	    		if ( key[4] && ( ( new Date().getTime() - deltaInput ) > 250 || deltaInput == undefined) ) { 
 	    			shoot();
 	    			deltaInput = new Date().getTime();
 	    		}
@@ -267,8 +458,11 @@
 	    			player.x = $(window).width();
 	    			
 	    	}
+	    	var wTriangle = 20;
+	    	var hTriangle = 40; 
+	    	var v = [[0,-hTriangle/2],[wTriangle/2,hTriangle/2],[-wTriangle/2,hTriangle/2]];
 	    	
-	    	var v = [[0,-30],[-10,0],[10,0]];
+	    	//var v = [[0,-30],[-10,0],[10,0]];
 	    	function drawPlayer(){
 				ctx.save();
 				ctx.translate(player.x, player.y);
@@ -281,34 +475,41 @@
 			    ctx.closePath();
 			    ctx.fill();
 			    
+			    var l = player.nick.length;
+			    ctx.fillText(player.nick, -4 - ( l * 2) , 30);
+			    
 				ctx.restore();
 			}
 			
 			function drawPlayers(){
 				for(var i=0; i<playersList.length; i++){
 					var pl = playersList[i];
-					// console.log( ball )
-					
-					ctx.save();
-					ctx.translate(pl.x, pl.y);
-					ctx.fillStyle = "red";
-
-					ctx.rotate( convertToRadians( pl.r ) )
-					ctx.beginPath();
-				    ctx.moveTo(v[0][0],v[0][1]);
-				    ctx.lineTo(v[1][0],v[1][1]);
-				    ctx.lineTo(v[2][0],v[2][1]);
-				    ctx.closePath();					
-					ctx.fill();
-					ctx.restore();
+					if( pl.show ){
+						// console.log( ball )
+						
+						ctx.save();
+						ctx.translate(pl.x, pl.y);
+						ctx.fillStyle = "red";
+	
+						ctx.rotate( convertToRadians( pl.r ) )
+						ctx.beginPath();
+					    ctx.moveTo(v[0][0],v[0][1]);
+					    ctx.lineTo(v[1][0],v[1][1]);
+					    ctx.lineTo(v[2][0],v[2][1]);
+					    ctx.closePath();					
+						ctx.fill();
+						
+						var l = pl.nick.length;
+			    		ctx.fillText(pl.nick, -4 - ( l * 2) , 30);
+						
+						ctx.restore();
+					}
 				}
 			}
 			
 			function drawBullets(){
 				for(var i=0; i<shootList.length; i++){
 					var b = shootList[i];
-					// console.log( b )
-					
 					ctx.save();
 					ctx.translate(b.x, b.y);
 					
@@ -332,7 +533,7 @@
 				ctx.clearRect( 0, 0, $(window).width(), $(window).height());
 				
 				ctx.save();
-				ctx.fillStyle = "rgba(0, 0, 0, 1)";
+				ctx.fillStyle = "rgba(22, 22, 22, 1)";
 				ctx.fillRect(0, 0, canvas.width, canvas.height);
 				ctx.restore();
 			}
@@ -344,18 +545,6 @@
 				drawPlayers();
 				drawBullets();
 			}
-			
-			setInterval(function() {
-				detectaInput();
-				detectaCollisions();
-				updateGamePos();
-				
-				draw();
-			}, 1000 / 60);
-			
-			setInterval(function() {
-				updatePlayer();
-			}, 10);
 			
 			function getMousePos(canvas, evt) {
 				var obj = canvas;
@@ -375,6 +564,7 @@
 				};
 			}
 		
+			var mouseXpos = 0, mouseYpos = 0;
 			canvas.addEventListener('mousemove', function(evt) {
 		
 				var mousePos = getMousePos(canvas, evt);
@@ -385,6 +575,7 @@
 			
 			var key=[0,0,0,0,0]; // left, right, up, down, space
 			function changeKey(which, to){
+				
 				switch (which){
 					case 65: case 37: key[0]=to; break; // left
 					case 87: case 38: key[2]=to; break; // up

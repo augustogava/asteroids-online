@@ -13,22 +13,24 @@ setInterval(function() {
     var message = [];
 	 
     for (var i=0; i < players.length; i++) {
-    	message[message.length] = { id: players[i].id, x: players[i].x, y:players[i].y, r:players[i].r };
+    	message[message.length] = { id: players[i].id, x: players[i].x, y:players[i].y, r:players[i].r, show:players[i].show, kills:players[i].kills, deaths:players[i].deaths, nick:players[i].nick };
     }
-    io.emit("position", message);
+//    console.log(message)
+    io.emit("update_player", message);
 }, 10);
 
 
 io.on('connection', function(socket){
     var index = 0;
     var p = undefined;
+    
     socket.on('add_player', function(msg){
-//    	console.log( players )
     	console.log( "add_player " + msg.id )
     	
     	p = new Player();
         p.id = msg.id;
         p.connection = socket;
+        p.show = true;
         
         var index = players.push(p) - 1;
 	});
@@ -37,9 +39,13 @@ io.on('connection', function(socket){
 //		console.log("update_player" + msg.id + " x: " + msg.x + " y: " + msg.y);
 		 for (var i=0; i < players.length; i++) {
 	    	if( players[i].id == msg.id){
+	    		players[i].nick = msg.nick;
 	    		players[i].x = msg.x;
 	    		players[i].y = msg.y;
 	    		players[i].r = msg.r;
+	    		players[i].kills = msg.kills;
+	    		players[i].deaths = msg.deaths;
+	    		players[i].show = msg.show;
 	    	}
 	    }
 	});
@@ -52,7 +58,8 @@ io.on('connection', function(socket){
 		console.log("player_die" + msg.id );
 		for(var i = players.length-1; i>=0; i--){
 	    	if( players[i].id == msg.id){
-	    		players.splice(i, 1);
+	    		//players.splice(i, 1);
+	    		players[i].show = false;
 	    		console.log("removed: " + i)
 	    	}
 	    }
