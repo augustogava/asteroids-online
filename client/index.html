@@ -148,6 +148,7 @@
 			var vx=0, vy =0, acceleration=0, accelerationForcex=0, accelerationForcey=0;
 			var deltaInput = undefined;
 	    	var rAdd = 1.5, accelerationFactor = .2, bulletAcceleration = 8;
+	    	var playersDeadList = [];
 	    	
 	    	function setNick(nick){
 	    		$("#overlays, #intro").hide();
@@ -194,7 +195,7 @@
 					// console.log(msg)
 					playersList = [];
 					for (var i=0; i < msg.length; i++) {
-				    	if( msg[i].id != player.id ){
+				    	if( msg[i].id != player.id && !existInPlayerList(msg[i], playersDeadList ) ){
 			    			playersList[playersList.length] = msg[i];
 				    	}
 				    }
@@ -247,9 +248,9 @@
 			/**
 			 * Array Manipulations
 			 */
-				function existInPlayerList( id ){
-					for (var i=0; i < playersList.length; i++) {
-						if( playersList[i].id == id ){
+				function existInPlayerList( find, list ){
+					for (var i=0; i < list.length; i++) {
+						if( list[i].id == find.id ){
 							return true;
 						}
 					}
@@ -272,7 +273,22 @@
 						}
 					}
 		    	}
-			
+		    	
+		    	function removeDiedPlayer(b){
+		    		for(var i = playersDeadList.length-1; i>=0; i--){
+						if (playersDeadList[i].id == b){
+							playersDeadList.splice(i, 1);
+						}
+					}
+		    	}
+				
+				function updateDiedList(){
+					for(var i = playersDeadList.length-1; i>=0; i--){
+						if ( ( new Date().getTime() - playersDeadList[i].lastTimeDied ) > 800){
+							removeDiedPlayer( playersDeadList[i].id );
+						}
+					}
+				}
 	    	
 	    	function detectaCollisionsTeste(){
 	    		 	var a = { x: mouseXpos, y:mouseYpos, width: 1, height: 1};
@@ -307,8 +323,12 @@
 							if(  b.show == true && (a.x+a.width) > xP && a.x < (xP + wTriangleNew) && (a.y+a.height) > yP && a.y < (yP + hTriangle) ){
 								console.info("colidiu: " + b.id);
 								b.show = false;
+								b.lastTimeDied = new Date().getTime(); 
+								
+								playersDeadList.push( b );
+
 								removeBullet(a.id);
-								removePlayer(b.id);
+								// removePlayer(b.id);
 								
 								player.kills +=1;
 								
@@ -324,25 +344,29 @@
 	    	
 	    	function initGame(){
 				insertPlayer();
-				
 				updateScore();
 				
 				setInterval(function() {
 					detectaInput();
 					detectaCollisions();
-					updateGamePos();
 					
+					process()
 					draw();
 					//detectaCollisionsTeste();
 				}, 1000 / 60);
 				
 				setInterval(function() {
 					updatePlayer();
-				}, 10);
+				}, 30);
 				
 				setInterval(function() {
 					updateLeaderboard();
 				}, 1000);
+			}
+			
+			function process(){
+				updateDiedList();//bug onde evento de atualizar players do server adiciona o cara morto antes da hora, pois server nao foi atualizado ainda
+				updateGamePos();
 			}
 			
 	    	function shoot(){
