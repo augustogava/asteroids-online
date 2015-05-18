@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 	<head>
-		<title>Socket.IO chat</title>
+		<title>Asteroids</title>
 		<style>
 			* {
 				margin: 0;
@@ -110,6 +110,9 @@
 				
 				margin-bottom: 15px;
 			}
+			canvas{
+				background-color: black;
+			}
 		</style>
 	</head>
 	<body>
@@ -132,6 +135,9 @@
 		<script src="socket.io-1.2.0.js"></script>
 		<script src="jquery-1.11.1.js"></script>
 		<script src="Shoot.js"></script>
+		<script src="Star.js"></script>
+		<script src="Smoke.js"></script>
+		
 		<script>
 			var socket = io("http://localhost:3000");
 			
@@ -147,8 +153,11 @@
 			
 			var vx=0, vy =0, acceleration=0, accelerationForcex=0, accelerationForcey=0;
 			var deltaInput = undefined;
-	    	var rAdd = 1.5, accelerationFactor = .2, bulletAcceleration = 8;
+	    	var rAdd = 2.5, accelerationFactor = 4, bulletAcceleration = 8;
 	    	var playersDeadList = [];
+	    	var pxs = [];
+	    	var smoke_player = [];
+	    	var rint = 1000/50;
 	    	
 	    	function setNick(nick){
 	    		$("#overlays, #intro").hide();
@@ -258,6 +267,14 @@
 					return false;
 				}
 				
+				function removeSmoke(b){
+		    		for(var i = smoke_player.length-1; i>=0; i--){
+						if (smoke_player[i].id == b){
+							smoke_player.splice(i, 1);
+						}
+					}
+		    	}
+		    	
 				function removeBullet(b){
 		    		for(var i = shootList.length-1; i>=0; i--){
 						if (shootList[i].id == b){
@@ -341,19 +358,22 @@
 					}
 	    		 }
 	    	}
+	    	var fdsDelta = new Date().getTime();
+	    	var fps = 0, fpsAtual = 0;
 	    	
 	    	function initGame(){
 				insertPlayer();
+				initStars();
 				updateScore();
 				
 				setInterval(function() {
 					detectaInput();
 					detectaCollisions();
 					
+					calculateFps();
 					process()
 					draw();
-					//detectaCollisionsTeste();
-				}, 1000 / 60);
+				}, 1000 / 50);
 				
 				setInterval(function() {
 					updatePlayer();
@@ -362,6 +382,25 @@
 				setInterval(function() {
 					updateLeaderboard();
 				}, 1000);
+			}
+			
+			function calculateFps(){
+				if( (new Date().getTime() - fdsDelta ) > 1000 ){
+						fdsDelta = new Date().getTime();
+						fpsAtual = fps
+						fps = 0;
+					}
+					fps++;
+					
+					// console.info(fpsAtual)
+			}
+			
+			function initStars(){
+				pxs = [];
+				for(var i = 0; i < 50; i++) {
+			        pxs[i] = new Star();
+			        pxs[i].reset();
+			    }
 			}
 			
 			function process(){
@@ -380,7 +419,7 @@
 	    	}
 	    	
 	    	function detectaInput(){
-	    		if ( key[4] && ( ( new Date().getTime() - deltaInput ) > 250 || deltaInput == undefined) ) { 
+	    		if ( key[4] && ( ( new Date().getTime() - deltaInput ) > 350 || deltaInput == undefined) ) { 
 	    			shoot();
 	    			deltaInput = new Date().getTime();
 	    		}
@@ -407,6 +446,11 @@
 
 	    			vx += (accelerationForcex / 100); // * Math.sin( convertToRadians( player.r ) ) * -1;
 					vy += (accelerationForcey / 100); // * Math.cos( convertToRadians( player.r ) );
+					
+					var smoke = new Smoke();
+					smoke.reset(player.x, player.y, Math.sin( convertToRadians( player.r ) ) * -1, Math.cos( convertToRadians( player.r ) ) );
+					
+					smoke_player.push(smoke);
 	    		}
 	    		
 	    		if (key[3] ) { //down
@@ -419,23 +463,23 @@
 					vy += (accelerationForcey / 100); // * Math.cos( convertToRadians( player.r ) );
 	    		}
 	    		
-	    		if( acceleration > 6 )
-	    			acceleration = 6;
+	    		if( acceleration > 5 )
+	    			acceleration = 5;
 	    			
-	    		if( acceleration < -6 )
-	    			acceleration = -6;
+	    		if( acceleration < -5 )
+	    			acceleration = -5;
 	    		
-	    		if( vx > 10 )
-	    			vx = 10;
+	    		if( vx > 5 )
+	    			vx = 5;
 	    			
-	    		if( vx < -10 )
-	    			vx = -10;
+	    		if( vx < -5 )
+	    			vx = -5;
 	    			
-	    		if( vy > 10 )
-	    			vy = 10;
+	    		if( vy > 5 )
+	    			vy = 5;
 	    			
-	    		if( vy < -10 )
-	    			vy = -10;
+	    		if( vy < -5 )
+	    			vy = -5;
 	    	}
 	    	
 	    	function updateBullets(){
@@ -482,11 +526,9 @@
 	    			player.x = $(window).width();
 	    			
 	    	}
-	    	var wTriangle = 20;
-	    	var hTriangle = 40; 
+	    	var wTriangle = 15;
+	    	var hTriangle = 30; 
 	    	var v = [[0,-hTriangle/2],[wTriangle/2,hTriangle/2],[-wTriangle/2,hTriangle/2]];
-	    	
-	    	//var v = [[0,-30],[-10,0],[10,0]];
 	    	function drawPlayer(){
 				ctx.save();
 				ctx.translate(player.x, player.y);
@@ -553,19 +595,40 @@
 				}
 			}
 			
+			function drawStars() {
+		        for(var i = 0; i < pxs.length; i++) {
+			        pxs[i].fade();
+			        pxs[i].move();
+			        pxs[i].draw();
+			  	}
+			}
+			
+			function drawSmoke() {
+		        for(var i = 0; i < smoke_player.length; i++) {
+			        smoke_player[i].fade();
+			        smoke_player[i].move();
+			        smoke_player[i].draw();
+			  	}
+			}
+		      
 			function drawBG(){
 				ctx.clearRect( 0, 0, $(window).width(), $(window).height());
+				// ctx.width = ctx.width;
 				
-				ctx.save();
-				ctx.fillStyle = "rgba(22, 22, 22, 1)";
-				ctx.fillRect(0, 0, canvas.width, canvas.height);
-				ctx.restore();
+				// ctx.save();
+				// ctx.fillStyle = "rgba(22, 22, 22, 1)";
+				// ctx.fillRect(0, 0, canvas.width, canvas.height);
+				// ctx.restore();
 			}
 			
 			function draw(){
-				drawBG();				
-				if( player.show)
+				drawBG();
+				drawStars();
+				
+				if( player.show){
 					drawPlayer();
+					drawSmoke();
+				}
 				drawPlayers();
 				drawBullets();
 			}
