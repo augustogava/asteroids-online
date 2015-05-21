@@ -6,7 +6,7 @@ Player.prototype = {
 	x: 0,
 	y: 0,
 	r: 0,
-	show: true,
+	alive: true,
 	kills: 0,
 	deaths: 0,
 	nick: "",
