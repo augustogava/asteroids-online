@@ -33,14 +33,16 @@ io.on('connection', function(socket){
         p.x = msg.x;
         p.y = msg.y;
         p.r = msg.r;
+        p.kills = 0;
+        p.deaths = 0;
         p.nick = msg.nick;
         
-        var message = { id: p.id, x: p.x, y:p.y, r:p.r, alive:p.alive, nick:p.nick };
+        var message = { id: p.id, x: p.x, y:p.y, r:p.r, alive:p.alive, nick:p.nick, kills: 0, deaths: 0 };
         io.emit("add_player", message);
         
         for (i = 0; i < players.length; i++) {
     		var existingPlayer = players[i];
-    		this.emit("add_player", { id: existingPlayer.id, x: existingPlayer.x, y:existingPlayer.y, r:p.r, alive:existingPlayer.alive, nick:existingPlayer.nick } );
+    		this.emit("add_player", { id: existingPlayer.id, x: existingPlayer.x, y:existingPlayer.y, r:p.r, alive:existingPlayer.alive, nick:existingPlayer.nick, kills: 0, deaths: 0 } );
     	};
     	
         var index = players.push(p) - 1;
@@ -65,14 +67,24 @@ io.on('connection', function(socket){
 	});
 	
 	socket.on('add_bullets', function(msg){
-		io.emit("add_bullets", msg);
+		if( p.alive ){
+			msg.player_id = p.id;
+			io.emit("add_bullets", msg);
+		}
+	});
+	
+	socket.on('add_score_player', function(data){
+		io.emit("add_score_player", data);
+	});
+	
+	socket.on('add_score_deaths', function(data){
+		io.emit("add_score_deaths", data);
 	});
 	
 	socket.on('player_die', function(msg){
 		console.log("player_die" + msg.id );
 		for(var i = players.length-1; i>=0; i--){
 	    	if( players[i].id == msg.id){
-	    		//players.splice(i, 1);
 	    		players[i].alive = false;
 	    		console.log("removed: " + i)
 	    	}
