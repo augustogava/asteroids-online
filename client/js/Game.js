@@ -414,7 +414,8 @@ function detectaInput() {
 											// player.r ) );
 
 		var smoke = new Smoke();
-		smoke.reset(player.x, player.y, Math.sin(convertToRadians(player.r))
+		var playerActualized = enemyById(player.id);
+		smoke.reset(playerActualized.x, playerActualized.y, Math.sin(convertToRadians(player.r))
 				* -1, Math.cos(convertToRadians(player.r)));
 
 		smoke_player.push(smoke);
