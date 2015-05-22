@@ -1,0 +1,109 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 14px;
+	line-height: 1.42857143;
+	overflow: hidden;
+}
+
+canvas{ background-color: black; }
+
+
+#score {
+	color: red;
+	position: absolute;
+	z-index: 10;
+	top: 5px;
+	font-size: 40px;
+	font-weight: bold;
+	font-family: fantasy;
+	left: 5px;
+}
+
+#leaderboard {
+	color: white;
+	position: absolute;
+	z-index: 10;
+	top: 15px;
+	font-size: 16px;
+	font-weight: bold;
+	background-color: rgba(250, 0, 0, 0.17);
+	width: 190px;
+	height: 260px;
+	left: 84%;
+	text-align: center;
+	display: none;
+}
+
+#leaderboard font {
+	font-size: 21px;
+}
+
+#intro {
+	width: 350px;
+	height: 150px;
+	background-color: #FFFFFF;
+	margin: 100px auto;
+	border-radius: 5px;
+	padding: 35px 15px 5px 15px;
+}
+
+#overlays {
+	position: absolute;
+	left: 0px;
+	right: 0px;
+	top: 0px;
+	bottom: 0px;
+	background-color: rgba(0, 0, 0, 0.9);
+	z-index: 2
+}
+
+.btn-play {
+	background-color: #428bca;
+	border-color: #357ebd;
+	cursor: not-allowed;
+	filter: alpha(opacity = 65);
+	-webkit-box-shadow: none;
+	box-shadow: none;
+	opacity: .65;
+	color: #fff;
+	display: block;
+	height: 35px;
+	width: 100%;
+	float: left;
+	background-image: none;
+	border: 1px solid transparent;
+	border-radius: 4px;
+}
+
+.form-nick:focus {
+	border-color: #66afe9;
+	outline: 0;
+	-webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075), 0 0 8px
+		rgba(102, 175, 233, .6);
+	box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075), 0 0 8px
+		rgba(102, 175, 233, .6);
+}
+
+.form-nick {
+	display: block;
+	width: 100%;
+	height: 34px;
+	padding: 6px 12px;
+	font-size: 14px;
+	line-height: 1.42857143;
+	color: #555;
+	background-color: #fff;
+	background-image: none;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	-webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+	box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
+	-webkit-transition: border-color ease-in-out .15s, -webkit-box-shadow
+		ease-in-out .15s;
+	-o-transition: border-color ease-in-out .15s, box-shadow ease-in-out
+		.15s;
+	transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
+	margin-bottom: 15px;
+}
