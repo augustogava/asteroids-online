@@ -18,10 +18,11 @@ var shootList = [];
 
 var vx = 0, vy = 0, acceleration = 0, accelerationForcex = 0, accelerationForcey = 0;
 var deltaInput = undefined;
-var rAdd = 2.5, accelerationFactor = 4, bulletAcceleration = 8;
+var rAdd = 4.5, accelerationFactor = 15, bulletAcceleration = 8;
 var playersDeadList = [];
 var pxs = [];
 var smoke_player = [];
+var particles = [];
 var rint = 1000 / 50;
 var mouseXpos = 0, mouseYpos = 0;
 var key = [ 0, 0, 0, 0, 0 ]; // left, right, up, down, space
@@ -103,15 +104,17 @@ function initSocket(){
 		
 		var diePlayer = enemyById(data.id);
 		diePlayer.alive = false;
-		diePlayer.x = 50 + Math.ceil(Math.random() * $(window).width() - 50);
-		diePlayer.y = 50 + Math.ceil(Math.random() * $(window).height() - 50);
-
+		addParticles( diePlayer.x, diePlayer.y);
+		
+		player.x = 50 + Math.ceil(Math.random() * $(window).width() - 50);
+		player.y = 50 + Math.ceil(Math.random() * $(window).height() - 50);
+		
 		player.deaths += 1;
 		
 		removeBulletsFromPlayer(diePlayer);
 		
 		updateScore();
-		
+		movePlayer();
 		setTimeout("activatePlayer(" + diePlayer.id + ");", 1000);
 	});
 
@@ -241,6 +244,14 @@ function removeSmoke(b) {
 	}
 }
 
+function removeParticles(b) {
+	for (var i = particles.length - 1; i >= 0; i--) {
+		if (particles[i].id == b) {
+			particles.splice(i, 1);
+		}
+	}
+}
+
 function removeBullet(b) {
 	for (var i = shootList.length - 1; i >= 0; i--) {
 		if (shootList[i].id == b) {
@@ -358,6 +369,8 @@ function detectaCollisions() {
 						b.alive = false;
 						b.lastTimeDied = new Date().getTime();
 						
+						addParticles(b.x, b.y);
+						
 						playersDeadList.push(b);
 	
 						addScorePlayer(playerAct);
@@ -376,6 +389,16 @@ function detectaCollisions() {
 				}
 			}
 		}
+	}
+}
+
+function addParticles(x, y){
+	console.info("add particles " + x + " " + y);
+	for(var e=0; e<7; e++){
+		var particle = new Particles();
+		var playerActualized = enemyById(player.id);
+		particle.reset(x, y);
+		particles.push(particle);
 	}
 }
 
@@ -403,10 +426,8 @@ function detectaInput() {
 	if (key[2]) { // up
 		acceleration -= accelerationFactor;
 
-		accelerationForcex = acceleration
-				* Math.sin(convertToRadians(player.r)) * -1;
-		accelerationForcey = acceleration
-				* Math.cos(convertToRadians(player.r));
+		accelerationForcex = acceleration * Math.sin(convertToRadians(player.r)) * -1;
+		accelerationForcey = acceleration * Math.cos(convertToRadians(player.r));
 
 		vx += (accelerationForcex / 100); // * Math.sin( convertToRadians(
 											// player.r ) ) * -1;
@@ -417,8 +438,8 @@ function detectaInput() {
 		var playerActualized = enemyById(player.id);
 		smoke.reset(playerActualized.x, playerActualized.y, Math.sin(convertToRadians(player.r))
 				* -1, Math.cos(convertToRadians(player.r)));
-
 		smoke_player.push(smoke);
+		
 	}
 
 	if (key[3]) { // down
@@ -477,8 +498,8 @@ function updateGamePos() {
 	acceleration *= .99;
 	acceleration *= .99;
 
-	vx *= .994;
-	vy *= .994;
+	vx *= .997;
+	vy *= .997;
 
 	player.x += vx;
 	player.y += vy;
@@ -573,9 +594,22 @@ function drawStars() {
 
 function drawSmoke() {
 	for (var i = 0; i < smoke_player.length; i++) {
+		if( smoke_player[i] == undefined )
+			return;
 		smoke_player[i].fade();
 		smoke_player[i].move();
 		smoke_player[i].draw();
+	}
+}
+
+function drawParticles() {
+	for (var i = 0; i < particles.length; i++) {
+		if( particles[i] == undefined )
+			return;
+		
+		particles[i].fade();
+		particles[i].move();
+		particles[i].draw();
 	}
 }
 
@@ -590,6 +624,7 @@ function draw() {
 	if (player.alive)
 		drawSmoke();
 
+	drawParticles();
 	drawPlayers();
 	drawBullets();
 }
