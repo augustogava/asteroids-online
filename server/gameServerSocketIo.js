@@ -114,8 +114,8 @@ io.on('connection', function(socket){
 	    		console.log("disconnect: " + i)
 	    	}
 	    }
-		
-		io.emit("disconnect", { id: p.id } );
+		if( p != undefined )
+			io.emit("disconnect", { id: p.id } );
 	});
 	
 });
